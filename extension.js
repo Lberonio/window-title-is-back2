@@ -1,6 +1,7 @@
 //    Window Title Is Back
 //    GNOME Shell extension
 //    @fthx 2025
+//    @lberonio
 
 
 import Clutter from 'gi://Clutter';
@@ -8,6 +9,7 @@ import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
+import Gio from 'gi://Gio';
 
 import {AppMenu} from 'resource:///org/gnome/shell/ui/appMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -95,27 +97,45 @@ class WindowTitleIndicator extends PanelMenu.Button {
     }
 
     _on_focused_window_changed() {
-        if (Main.sessionMode.isLocked)
-            return;
+    if (Main.sessionMode.isLocked)
+        return;
 
-        if (this._focused_window)
-            this._focused_window.disconnectObject(this);
-        this._focused_window = global.display.get_focus_window();
+    // Disconnect old signal if any
+    if (this._focused_window)
+        this._focused_window.disconnectObject(this);
 
-        if (this._focused_window &&
-                (!this._focused_window.skip_taskbar ||
-                    (this._focused_window.get_window_type() == Meta.WindowType.MODAL_DIALOG))) {
-            this._sync();
+    this._focused_window = global.display.get_focus_window();
 
-            if (this._settings.get_boolean('show-title'))
-                this._focused_window.connectObject('notify::title', this._sync.bind(this), this);
-        }
-
-        if ((!this._focused_window && !this._menu.isOpen) ||
-                (this._focused_window && this._focused_window.skip_taskbar &&
-                    this._focused_window.get_window_type() != Meta.WindowType.MODAL_DIALOG))
-            this._fade_out();
+    // No window focused → show Desktop state
+    if (!this._focused_window) {
+        this._set_desktop_state();
+        return;
     }
+
+    // Skip windows hidden from taskbar unless modal dialogs
+    const isVisibleWindow =
+        !this._focused_window.skip_taskbar ||
+        this._focused_window.get_window_type() == Meta.WindowType.MODAL_DIALOG;
+
+    if (!isVisibleWindow) {
+        this._set_desktop_state();
+        return;
+    }
+
+    // Real app focused
+    this._set_window_app();
+    this._set_window_title();
+
+    // Restore menu for real app
+    this.menu.setApp(this._focused_app);
+
+    // Update title dynamically if enabled
+    if (this._settings.get_boolean('show-title'))
+        this._focused_window.connectObject('notify::title', this._set_window_title.bind(this), this);
+
+    this.show();
+    this.opacity = 255;
+}
 
     _set_window_app() {
         this._focused_app = this._get_focused_app();
@@ -168,6 +188,43 @@ class WindowTitleIndicator extends PanelMenu.Button {
         }
         return null;
     }
+
+    _set_desktop_state() {
+    this._focused_app = null;
+    this._focused_window = null;
+
+    const showIcon = this._settings.get_boolean('show-icon');
+    const showApp = this._settings.get_boolean('show-app');
+
+    // Icon
+    if (showIcon)
+        this._icon.set_gicon(Gio.icon_new_for_string('user-desktop-symbolic'));
+    else
+        this._icon.set_gicon(null);
+    this._icon.visible = showIcon;
+
+    // App label
+    if (showApp)
+        this._app.set_text('Desktop');
+    else
+        this._app.set_text('');
+    this._app.visible = showApp;
+
+    // Clear the window title
+    this._title.set_text('');
+    this._title.visible = false;
+
+    // Padding
+    this._icon_padding.set_text(showIcon ? '   ' : '');
+    this._app_padding.set_text('');
+
+    // Make indicator clickable, but disable menu
+    this.menu.setApp(null);         // clears menu, so nothing shows when clicked
+    this.menu._app = null;          // also clear internal reference
+
+    this.show();
+    this.opacity = 255;
+}
 
     _destroy() {
         global.display.disconnectObject(this);
