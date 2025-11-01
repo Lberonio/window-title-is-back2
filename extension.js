@@ -23,41 +23,43 @@ class WindowTitleIndicator extends PanelMenu.Button {
     static match_app_name_for_title = String.raw`^(.*?)(\s?(-|—)\s?app_name\s?\w?\s?((\w{0,4}\.){0,3}\d\w?)?)$`;
     
     _init(settings) {
-        super._init();
+    super._init();
 
-        this._settings = settings;
+    this._settings = settings;
 
-        this._menu = new AppMenu(this);
-        this.setMenu(this._menu);
-        this._menu.setSourceAlignment(0.3);
-        Main.panel.menuManager.addMenu(this._menu);
+    this._menu = new AppMenu(this);
+    this.setMenu(this._menu);
+    this._menu.setSourceAlignment(0.3);
+    Main.panel.menuManager.addMenu(this._menu);
 
-        this._desaturate_effect = new Clutter.DesaturateEffect();
+    this._desaturate_effect = new Clutter.DesaturateEffect();
 
-        this._box = new St.BoxLayout({style_class: 'panel-button'});
+    // One box layout only — with GNOME's native spacing
+    this._box = new St.BoxLayout({
+        style_class: 'panel-button',
+        spacing: 6, // ~GNOME default
+        y_align: Clutter.ActorAlign.CENTER,
+    });
 
-        this._icon = new St.Icon({});
-        this._icon.set_fallback_gicon(null);
-        this._box.add_child(this._icon);
+    this._icon = new St.Icon({});
+    this._icon.set_fallback_gicon(null);
+    this._box.add_child(this._icon);
 
-        this._icon_padding = new St.Label({y_align: Clutter.ActorAlign.CENTER});
-        this._box.add_child(this._icon_padding);
+    this._app = new St.Label({
+        y_align: Clutter.ActorAlign.CENTER,
+        style_class: 'panel-label',
+    });
+    this._box.add_child(this._app);
+    this._set_window_app_style();
 
-        this._app = new St.Label({y_align: Clutter.ActorAlign.CENTER});
-        this._box.add_child(this._app);
-        this._set_window_app_style();
+    this._title = new St.Label({y_align: Clutter.ActorAlign.CENTER});
+    this._box.add_child(this._title);
 
-        this._app_padding = new St.Label({y_align: Clutter.ActorAlign.CENTER});
-        this._box.add_child(this._app_padding);
+    this.add_child(this._box);
 
-        this._title = new St.Label({y_align: Clutter.ActorAlign.CENTER});
-        this._box.add_child(this._title);
-
-        this.add_child(this._box);
-
-        global.display.connectObject('notify::focus-window', this._on_focused_window_changed.bind(this), this);
-        St.TextureCache.get_default().connectObject('icon-theme-changed', this._on_focused_window_changed.bind(this), this);
-    }
+    global.display.connectObject('notify::focus-window', this._on_focused_window_changed.bind(this), this);
+    St.TextureCache.get_default().connectObject('icon-theme-changed', this._on_focused_window_changed.bind(this), this);
+}
 
     _fade_in() {
         this.remove_all_transitions();
@@ -149,13 +151,8 @@ class WindowTitleIndicator extends PanelMenu.Button {
     }
 
     _set_window_app_style() {
-        if (this._settings.get_boolean('show-app') && this._settings.get_boolean('show-title')) {
-             this._app.style = "font-weight: 900";
-        }
-        else {
-             this._app.style = "font-weight: normal";
-        }
-    }
+    this._app.style = "font-weight: bold;";
+}
 
     _set_window_title() {
         if (this._focused_window)
