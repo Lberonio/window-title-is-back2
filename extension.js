@@ -211,10 +211,6 @@ class WindowTitleIndicator extends PanelMenu.Button {
     this._title.set_text('');
     this._title.visible = false;
 
-    // Padding
-    this._icon_padding.set_text(showIcon ? '   ' : '');
-    this._app_padding.set_text('');
-
     // Make indicator clickable, but disable menu
     this.menu.setApp(null);         // clears menu, so nothing shows when clicked
     this.menu._app = null;          // also clear internal reference
@@ -245,16 +241,7 @@ export default class WindowTitleIsBackExtension extends Extension {
         this._indicator._app.visible = this._settings.get_boolean('show-app');
         this._indicator._title.visible = this._settings.get_boolean('show-title');
         this._indicator._ease_time = this._settings.get_int('ease-time');
-
-        if (this._settings.get_boolean('show-icon'))
-            this._indicator._icon_padding.set_text('   ');
-        else
-            this._indicator._icon_padding.set_text('');
-
-        if (this._settings.get_boolean('show-app') && this._settings.get_boolean('show-title'))
-            this._indicator._app_padding.set_text('   ');
-        else
-            this._indicator._app_padding.set_text('');
+        
         this._indicator._set_window_app_style();
 
         if (this._settings.get_boolean('colored-icon')) {
